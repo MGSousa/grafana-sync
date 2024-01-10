@@ -1,9 +1,7 @@
 package grafana
 
 import (
-	"context"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,63 +9,55 @@ import (
 	"github.com/grafana-tools/sdk"
 )
 
-func PullNotifications(grafanaURL string, apiKey string, directory string) error {
+// PullNotifications
+func (g *Grafana) PullNotifications() error {
 	var (
 		notifications []sdk.AlertNotification
 		err           error
 	)
-	ctx := context.Background()
 
-	c, err := sdk.NewClient(grafanaURL, apiKey, httpClient)
-	if err != nil {
+	if notifications, err = g.client.GetAllAlertNotifications(g.ctx); err != nil {
 		return err
 	}
-
-	if notifications, err = c.GetAllAlertNotifications(ctx); err != nil {
-		return err
-	}
-
 	for _, notification := range notifications {
 		b, err := json.MarshalIndent(notification, "", "  ")
 		if err != nil {
 			return err
 		}
-		if err = writeToFile(directory, b, notification.Name, ""); err != nil {
+		if err = writeToFile(g.dir, b, notification.Name, ""); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func PushNotification(grafanaURL string, apiKey string, directory string) error {
+// PushNotification
+func (g *Grafana) PushNotification() error {
 	var (
-		filesInDir []os.FileInfo
+		filesInDir []os.DirEntry
 		rawFolder  []byte
 		err        error
 	)
 
-	ctx := context.Background()
-	c, err := sdk.NewClient(grafanaURL, apiKey, httpClient)
-	if err != nil {
-		return err
-	}
-	if filesInDir, err = ioutil.ReadDir(directory); err != nil {
+	if filesInDir, err = os.ReadDir(g.dir); err != nil {
 		return err
 	}
 	for _, file := range filesInDir {
 		if filepath.Ext(file.Name()) == ".json" {
-			if rawFolder, err = ioutil.ReadFile(filepath.Join(directory, file.Name())); err != nil {
+			if rawFolder, err = os.ReadFile(filepath.Join(g.dir, file.Name())); err != nil {
 				log.Println(err)
 				ExecutionErrorHappened = true
 				continue
 			}
+
 			var notification sdk.AlertNotification
 			if err = json.Unmarshal(rawFolder, &notification); err != nil {
 				log.Println(err)
 				ExecutionErrorHappened = true
 				continue
 			}
-			if _, err := c.CreateAlertNotification(ctx, notification); err != nil {
+
+			if _, err := g.client.CreateAlertNotification(g.ctx, notification); err != nil {
 				log.Printf("error on importing notification %s", notification.Name)
 				ExecutionErrorHappened = true
 				continue

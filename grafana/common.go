@@ -1,19 +1,17 @@
 package grafana
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
 var ExecutionErrorHappened = false
 
-func writeToFile(directory string, content []byte, name string, tag string) error {
+func writeToFile(directory string, content []byte, name, tag string) error {
 	var (
 		err           error
 		path          string
 		dashboardFile *os.File
-		fileName      string
 	)
 
 	path = directory
@@ -22,20 +20,20 @@ func writeToFile(directory string, content []byte, name string, tag string) erro
 	}
 
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		if err = os.MkdirAll(path, 0755); err != nil {
+		if err = os.MkdirAll(path, 0750); err != nil {
 			return err
 		}
 	}
-	fileName = filepath.Join(path, name+".json")
-	dashboardFile, err = os.Create(fileName)
+
+	dashboardFile, err = os.Create(
+		filepath.Clean(
+			filepath.Join(path, name+".json")))
 	if err != nil {
 		return err
 	}
-
 	defer dashboardFile.Close()
 
-	err = ioutil.WriteFile(dashboardFile.Name(), content, os.FileMode(0755))
-	if err != nil {
+	if err = os.WriteFile(dashboardFile.Name(), content, os.FileMode(0755)); err != nil {
 		return err
 	}
 	return nil

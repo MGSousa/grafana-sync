@@ -2,7 +2,8 @@
 FROM golang:1.20.0-alpine3.17 AS builder
 
 WORKDIR ${GOPATH}/src/github.com/mpostument/grafana-sync
-COPY . ${GOPATH}/src/github.com/mpostument/grafana-sync
+
+COPY . ./
 
 RUN go build -o /go/bin/grafana-sync .
 
